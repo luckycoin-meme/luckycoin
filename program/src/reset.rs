@@ -1,6 +1,6 @@
-use ore_api::{
+use luckycoin_api::{
     consts::*,
-    error::OreError,
+    error::LuckycoinError,
     loaders::*,
     state::{Bus, Config},
 };
@@ -101,7 +101,7 @@ pub fn process_reset(accounts: &[AccountInfo<'_>], _data: &[u8]) -> ProgramResul
     // Max supply check.
     let mint = Mint::unpack(&mint_info.data.borrow()).expect("Failed to parse mint");
     if mint.supply.ge(&MAX_SUPPLY) {
-        return Err(OreError::MaxSupply.into());
+        return Err(LuckycoinError::MaxSupply.into());
     }
 
     // Fund the treasury token account.
@@ -161,7 +161,7 @@ pub(crate) fn calculate_new_reward_rate(current_rate: u64, epoch_rewards: u64) -
 #[cfg(test)]
 mod tests {
     use rand::{distributions::Uniform, Rng};
-
+    use luckycoin_api::consts::{BASE_REWARD_RATE_MIN_THRESHOLD, BUS_EPOCH_REWARDS, MAX_EPOCH_REWARDS, SMOOTHING_FACTOR, TARGET_EPOCH_REWARDS};
     use crate::calculate_new_reward_rate;
     use ore_api::consts::{
         BASE_REWARD_RATE_MIN_THRESHOLD, BUS_EPOCH_REWARDS, MAX_EPOCH_REWARDS, SMOOTHING_FACTOR,

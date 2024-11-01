@@ -7,6 +7,7 @@ mod reset;
 mod stake;
 mod update;
 mod upgrade;
+mod health;
 
 use claim::*;
 use close::*;
@@ -18,43 +19,33 @@ use stake::*;
 use update::*;
 use upgrade::*;
 
-use ore_api::instruction::*;
-use solana_program::{
-    self, account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
-    pubkey::Pubkey,
-};
+use luckycoin_api::instruction::*;
+use solana_program::{self, account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
+use crate::health::process_health;
 
-// 定义程序的入口点
 solana_program::entrypoint!(process_instruction);
 
-// 程序的主处理函数
 pub fn process_instruction(
-    program_id: &Pubkey, // 程序的公钥
-    accounts: &[AccountInfo], // 账户的信息切片
-    data: &[u8], // 传入的指令数据
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    data: &[u8]
 ) -> ProgramResult {
-    // 检查传入的 program_id 是否与预期的程序 ID 匹配
-    if program_id.ne(&ore_api::id()) {
-        return Err(ProgramError::IncorrectProgramId); // 如果不匹配，返回错误
+    if program_id.ne(&luckycoin_api::id()) {
+        return Err(ProgramError::IncorrectProgramId); 
     }
+    let (tag, data) = data.split_first().ok_or(ProgramError::InvalidInstructionData)?; // 如果数据为空，则返回错误
 
-    // 从数据中提取第一个字节（指令的标签）和剩余数据
-    let (tag, data) = data
-        .split_first()
-        .ok_or(ProgramError::InvalidInstructionData)?; // 如果数据为空，则返回错误
-
-    // 根据指令标签选择相应的处理函数
-    match OreInstruction::try_from(*tag).or(Err(ProgramError::InvalidInstructionData))? {
-        OreInstruction::Claim => process_claim(accounts, data)?,
-        OreInstruction::Close => process_close(accounts, data)?,
-        OreInstruction::Mine => process_mine(accounts, data)?,
-        OreInstruction::Open => process_open(accounts, data)?,
-        OreInstruction::Reset => process_reset(accounts, data)?,
-        OreInstruction::Stake => process_stake(accounts, data)?,
-        OreInstruction::Update => process_update(accounts, data)?,
-        OreInstruction::Upgrade => process_upgrade(accounts, data)?,
-        OreInstruction::Initialize => process_initialize(accounts, data)?,
+    match LuckycoinInstruction::try_from(*tag).or(Err(ProgramError::InvalidInstructionData))? {
+        LuckycoinInstruction::Claim => process_claim(accounts, data)?,
+        LuckycoinInstruction::Close => process_close(accounts, data)?,
+        LuckycoinInstruction::Mine => process_mine(accounts, data)?,
+        LuckycoinInstruction::Open => process_open(accounts, data)?,
+        LuckycoinInstruction::Reset => process_reset(accounts, data)?,
+        LuckycoinInstruction::Stake => process_stake(accounts, data)?,
+        LuckycoinInstruction::Update => process_update(accounts, data)?,
+        LuckycoinInstruction::Upgrade => process_upgrade(accounts, data)?,
+        LuckycoinInstruction::Health => process_health(accounts, data)?,
+        LuckycoinInstruction::Initialize => process_initialize(accounts, data)?,
     }
-
     Ok(())
 }

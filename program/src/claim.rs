@@ -1,4 +1,4 @@
-use ore_api::{consts::*, error::OreError, instruction::*, loaders::*, state::Proof};
+use luckycoin_api::{consts::*, error::LuckycoinError, instruction::*, loaders::*, state::Proof};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
 };
@@ -38,7 +38,7 @@ pub fn process_claim(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult
     proof.balance = proof
         .balance
         .checked_sub(amount)
-        .ok_or(OreError::ClaimTooLarge)?; // 确保余额不会变为负数，如果金额过大则返回错误。
+        .ok_or(LuckycoinError::ClaimTooLarge)?; // 确保余额不会变为负数，如果金额过大则返回错误。
 
     // 从国库向受益人账户转移代币。
     transfer_signed(
@@ -50,5 +50,5 @@ pub fn process_claim(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult
         &[&[TREASURY, &[TREASURY_BUMP]]], // 用于转账的签名者种子。
     )?;
 
-    Ok(())// 返回成功。
+    Ok(()) // 返回成功。
 }

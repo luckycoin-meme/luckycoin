@@ -1,10 +1,11 @@
-use ore_api::{consts::*, error::OreError, instruction::Stake};
+use luckycoin_api::{consts::*, error::LuckycoinError, instruction::Stake};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
     program_pack::Pack,
 };
 use spl_token::state::Mint;
 use steel::*;
+use luckycoin_api::loaders::{load_mint, load_program, load_signer, load_token_account};
 
 /// Upgrade allows a user to migrate a v1 token to a v2 token at a 1:1 exchange rate.
 pub fn process_upgrade(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
@@ -51,7 +52,7 @@ pub fn process_upgrade(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResu
     let mint_data = mint_info.data.borrow();
     let mint = Mint::unpack(&mint_data)?;
     if mint.supply.saturating_add(amount_to_mint).gt(&MAX_SUPPLY) {
-        return Err(OreError::MaxSupply.into());
+        return Err(LuckycoinError::MaxSupply.into());
     }
 
     // Mint to the beneficiary account

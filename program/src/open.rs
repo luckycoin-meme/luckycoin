@@ -1,6 +1,11 @@
 use std::mem::size_of;
 
-use ore_api::{consts::*, instruction::Open, state::Proof};
+use luckycoin_api::{
+    consts::*,
+    instruction::Open,
+    state::Proof,
+    loaders::*,
+};
 use solana_program::{
     account_info::AccountInfo,
     clock::Clock,
@@ -12,6 +17,7 @@ use solana_program::{
     sysvar::{self, Sysvar},
 };
 use steel::*;
+use luckycoin_api::cpi::create_pda;
 
 /// Open creates a new proof account to track a miner's state.
 pub fn process_open(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
@@ -30,7 +36,7 @@ pub fn process_open(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult 
         proof_info,
         &[PROOF, signer.key.as_ref()],
         args.bump,
-        &ore_api::id(),
+        &luckycoin_api::id(),
     )?;
     load_program(system_program, system_program::id())?;
     load_sysvar(slot_hashes_info, sysvar::slot_hashes::id())?;
@@ -38,7 +44,7 @@ pub fn process_open(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult 
     // Initialize proof.
     create_pda(
         proof_info,
-        &ore_api::id(),
+        &luckycoin_api::id(),
         8 + size_of::<Proof>(),
         &[PROOF, signer.key.as_ref(), &[args.bump]],
         system_program,
@@ -54,7 +60,7 @@ pub fn process_open(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult 
         signer.key.as_ref(),
         &slot_hashes_info.data.borrow()[0..size_of::<SlotHash>()],
     ])
-    .0;
+        .0;
     proof.last_hash = [0; 32];
     proof.last_hash_at = clock.unix_timestamp;
     proof.last_stake_at = clock.unix_timestamp;

@@ -1,9 +1,9 @@
 use std::mem::size_of;
 
 use drillx::Solution;
-use ore_api::{
+use luckycoin_api::{
     consts::*,
-    error::OreError,
+    error::LuckycoinError,
     event::MineEvent,
     instruction::Mine,
     loaders::*,
@@ -27,6 +27,7 @@ use steel::*;
 
 /// 该函数验证处理挖矿请求，验证哈希并增加矿工的可收集余额
 pub fn process_mine(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
+    println!("开始挖矿！！");
     // 解析输入函数
     let args = Mine::try_from_bytes(data)?;
 
@@ -55,7 +56,7 @@ pub fn process_mine(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult 
         .saturating_add(EPOCH_DURATION)
         .le(&clock.unix_timestamp)
     {
-        return Err(OreError::NeedsReset.into()); //返回错误，需要重置
+        return Err(LuckycoinError::NeedsReset.into()); //返回错误，需要重置
     }
 
     // 验证哈希摘要
@@ -63,7 +64,7 @@ pub fn process_mine(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult 
     let proof = Proof::try_from_bytes_mut(&mut proof_data)?;
     let solution = Solution::new(args.digest, args.nonce);
     if !solution.is_valid(&proof.challenge) {
-        return Err(OreError::HashInvalid.into()); // 返回错误，哈希无效
+        return Err(LuckycoinError::HashInvalid.into()); // 返回错误，哈希无效
     }
 
     // 拒绝垃圾邮件事务
@@ -71,14 +72,14 @@ pub fn process_mine(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult 
     let t_target = proof.last_hash_at.saturating_add(ONE_MINUTE); // 目标时间
     let t_spam = t_target.saturating_sub(TOLERANCE); // 垃圾邮件时间限制
     if t.lt(&t_spam) {
-        return Err(OreError::Spam.into()); // 返回错误，垃圾邮件
+        return Err(LuckycoinError::Spam.into()); // 返回错误，垃圾邮件
     }
 
     // 验证哈希满足最低难度
     let hash = solution.to_hash(); // 计算哈希
     let difficulty = hash.difficulty(); // 获取难度
     if difficulty.lt(&(config.min_difficulty as u32)) {
-        return Err(OreError::HashTooEasy.into()); // 返回错误，哈希太简单
+        return Err(LuckycoinError::HashTooEasy.into()); // 返回错误，哈希太简单
     }
 
     // 规范化难度并计算奖励金额
@@ -196,10 +197,10 @@ pub fn process_mine(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult 
 fn authenticate(data: &[u8], proof_address: &Pubkey) -> ProgramResult {
     if let Ok(Some(auth_address)) = parse_auth_address(data) {
         if proof_address.ne(&auth_address) {
-            return Err(OreError::AuthFailed.into()); //返回错误，认证失败
+            return Err(LuckycoinError::AuthFailed.into()); //返回错误，认证失败
         }
     } else {
-        return Err(OreError::AuthFailed.into()); // 发挥错误，认证失败
+        return Err(LuckycoinError::AuthFailed.into()); // 发挥错误，认证失败
     }
     Ok(())
 }
