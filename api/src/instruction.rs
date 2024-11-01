@@ -6,18 +6,16 @@ use steel::*;  // 引入 steel 库，可能用于处理指令和账户元数据
 #[repr(u8)]  // 指定此枚举的底层表示为无符号 8 位整数
 #[derive(Clone, Copy, Debug, Eq, PartialEq, TryFromPrimitive)]  // 实现 trait
 pub enum LuckycoinInstruction {
-    // 用户相关指令
-    Claim = 0,    // 领取奖励
-    Close = 1,    // 关闭账户
-    Mine = 2,     // 挖矿
-    Open = 3,     // 打开账户
-    Reset = 4,    // 重置状态
-    Stake = 5,    // 质押
-    Update = 6,   // 更新状态
-    Upgrade = 7,  // 升级账户
-    Health = 8, //健康检查
-    // 管理员相关指令
-    Initialize = 100,  // 初始化程序
+    Claim = 0,    
+    Close = 1,    
+    Mine = 2,    
+    Open = 3,     
+    Reset = 4,    
+    Stake = 5,   
+    Update = 6, 
+    Upgrade = 7, 
+    Health = 8, 
+    Initialize = 100, 
 }
 
 /// 领取指令的结构体。

@@ -183,7 +183,6 @@ pub fn process_initialize(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramR
          signer
     )?;
 
-    // 设置配置账户的初始数据
     let mut config_data = config_info.data.borrow_mut();
     config_data[0] = Config::discriminator() as u8; 
     let config = Config::try_from_bytes_mut(&mut config_data)?;
@@ -192,8 +191,6 @@ pub fn process_initialize(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramR
     config.min_difficulty = INITIAL_MIN_DIFFICULTY as u64; 
     config.top_balance = 0; 
 
-    // 初始化国库账户
-    msg!("load init treasury account.....");
     create_pda(
         treasury_info, 
         &luckycoin_api::id(), 8 + size_of::<Treasury>(), 

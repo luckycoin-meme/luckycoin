@@ -9,7 +9,7 @@ use luckycoin_api::{
     loaders::*,
     state::{Bus, Config, Proof},
 };
-use solana_program::program::set_return_data;
+use solana_program::{clock, program::set_return_data};
 #[allow(deprecated)]
 use solana_program::{
     account_info::AccountInfo,
@@ -25,61 +25,59 @@ use solana_program::{
 };
 use steel::*;
 
-/// 该函数验证处理挖矿请求，验证哈希并增加矿工的可收集余额
 pub fn process_mine(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult {
-    println!("开始挖矿！！");
-    // 解析输入函数
     let args = Mine::try_from_bytes(data)?;
-
-    // 加载必要的账户
-    let [signer, bus_info, config_info, proof_info, instructions_sysvar, slot_hashes_sysvar] =
-        accounts
+    let [
+        signer, 
+        bus_info, 
+        config_info, 
+        proof_info, 
+        instructions_sysvar, 
+        slot_hashes_sysvar
+    ] = accounts
     else {
-        return Err(ProgramError::NotEnoughAccountKeys); // 返回错误，余额不足
+        return Err(ProgramError::NotEnoughAccountKeys); 
     };
-    load_signer(signer)?; // 加载签名者账户
-    load_any_bus(bus_info, true)?; // 加载总线账户
-    load_config(config_info, false)?; // 加载配置账户
-    load_proof_with_miner(proof_info, signer.key, true)?; // 加载证明账户
-    load_sysvar(instructions_sysvar, sysvar::instructions::id())?; // 加载指令系统变量
-    load_sysvar(slot_hashes_sysvar, sysvar::slot_hashes::id())?; // 加载插槽哈希系统变量
+    load_signer(signer)?; 
+    load_any_bus(bus_info, true)?; 
+    load_config(config_info, false)?; 
+    load_proof_with_miner(proof_info, signer.key, true)?; 
+    load_sysvar(instructions_sysvar, sysvar::instructions::id())?; 
+    load_sysvar(slot_hashes_sysvar, sysvar::slot_hashes::id())?; 
 
     // 认证证明账户
     authenticate(&instructions_sysvar.data.borrow(), proof_info.key)?;
 
-    // 验证当前纪元是否有效
+    // 验证当前纪元是否有效，确保挖矿操作在合适的时间窗口内有效进行
+    // 检查当前时间是否已超过上次重置时间加上设定的纪元持续时间
     let config_data = config_info.data.borrow();
     let config = Config::try_from_bytes(&config_data)?;
     let clock = Clock::get().or(Err(ProgramError::InvalidAccountData))?;
-    if config
-        .last_reset_at
-        .saturating_add(EPOCH_DURATION)
-        .le(&clock.unix_timestamp)
-    {
-        return Err(LuckycoinError::NeedsReset.into()); //返回错误，需要重置
+    if config.last_reset_at.saturating_add(EPOCH_DURATION).le(&clock.unix_timestamp){
+        return Err(LuckycoinError::NeedsReset.into()); 
     }
 
-    // 验证哈希摘要
+    // 验证哈希摘要(解析出证明信息，创建解决方案并验证是否符合挑战条件)
     let mut proof_data = proof_info.data.borrow_mut();
     let proof = Proof::try_from_bytes_mut(&mut proof_data)?;
     let solution = Solution::new(args.digest, args.nonce);
     if !solution.is_valid(&proof.challenge) {
-        return Err(LuckycoinError::HashInvalid.into()); // 返回错误，哈希无效
+        return Err(LuckycoinError::HashInvalid.into()); 
     }
 
     // 拒绝垃圾邮件事务
-    let t: i64 = clock.unix_timestamp; // 当前时间
-    let t_target = proof.last_hash_at.saturating_add(ONE_MINUTE); // 目标时间
-    let t_spam = t_target.saturating_sub(TOLERANCE); // 垃圾邮件时间限制
+    let t: i64 = clock.unix_timestamp; 
+    let t_target = proof.last_hash_at.saturating_add(ONE_MINUTE); 
+    let t_spam = t_target.saturating_sub(TOLERANCE); 
     if t.lt(&t_spam) {
-        return Err(LuckycoinError::Spam.into()); // 返回错误，垃圾邮件
+        return Err(LuckycoinError::Spam.into()); 
     }
 
     // 验证哈希满足最低难度
-    let hash = solution.to_hash(); // 计算哈希
-    let difficulty = hash.difficulty(); // 获取难度
+    let hash = solution.to_hash(); 
+    let difficulty = hash.difficulty(); 
     if difficulty.lt(&(config.min_difficulty as u32)) {
-        return Err(LuckycoinError::HashTooEasy.into()); // 返回错误，哈希太简单
+        return Err(LuckycoinError::HashTooEasy.into()); 
     }
 
     // 规范化难度并计算奖励金额
@@ -177,23 +175,13 @@ pub fn process_mine(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult 
             difficulty: difficulty as u64,
             reward: reward_actual,
             timing: t.saturating_sub(t_liveness),
-        }
-            .to_bytes(),
+        }.to_bytes(),
     );
 
     Ok(())
 }
 
 /// 认证证明账户，以防止 Sybil 攻击。
-///
-/// This process is necessary to prevent sybil attacks. If a user can pack multiple hashes into a single
-/// transaction, then there is a financial incentive to mine across multiple keypairs and submit as many hashes
-/// as possible in the same transaction to minimize fee / hash.
-///
-/// This is prevented by forcing every transaction to declare upfront the proof account that will be used for mining.
-/// The authentication process includes passing the 32 byte pubkey address as instruction data to a CU-optimized noop
-/// program. We parse this address through transaction introspection and use it to ensure the same proof account is
-/// used for every `mine` instruction in a given transaction.
 fn authenticate(data: &[u8], proof_address: &Pubkey) -> ProgramResult {
     if let Ok(Some(auth_address)) = parse_auth_address(data) {
         if proof_address.ne(&auth_address) {
