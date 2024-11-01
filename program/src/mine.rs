@@ -81,9 +81,7 @@ pub fn process_mine(accounts: &[AccountInfo<'_>], data: &[u8]) -> ProgramResult 
     }
 
     // 规范化难度并计算奖励金额
-    let normalized_difficulty = difficulty
-        .checked_sub(config.min_difficulty as u32)
-        .unwrap();
+    let normalized_difficulty = difficulty.checked_sub(config.min_difficulty as u32).unwrap();
     let mut reward = config
         .base_reward_rate
         .checked_mul(2u64.checked_pow(normalized_difficulty).unwrap())
